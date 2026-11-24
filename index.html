@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <title>SisFall · 跌倒风险监测</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="bar">
+    <strong>SisFall</strong>
+    <span class="privacy">本地分析 · 不上传视频</span>
+  </header>
+
+  <main>
+    <section class="monitor" aria-label="实时姿态监测">
+      <div class="stage" id="stage">
+        <video id="video" playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <div class="empty" id="emptyState"><p id="emptyText">等待画面。请站到镜头前，或运行演示场景。</p></div>
+        <div class="live-badge" id="liveBadge"><i></i> 实时</div>
+        <div class="alert" id="alertBox"><span id="alertAdvice"></span></div>
+        <div class="nudge" id="nudgeBox"><span id="nudgeText"></span></div>
+        <div class="askbar" id="askBar"><span id="askText"></span><i class="ask-hint">点头＝是 · 摇头＝不是</i><span class="ask-actions"><button id="askYes">是</button><button id="askNo">不是</button></span></div>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </div>
+
+      <aside class="panel">
+        <div class="head">
+          <span class="state-chip calibrating" id="stateChip">校准中</span>
+          <div class="head-tools">
+            <button class="orb on" id="soundBtn" aria-pressed="true" aria-label="声音" title="告警提示音">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4a5 5 0 0 0-5 5v3l-1.5 2h13L17 12V9a5 5 0 0 0-5-5Z" />
+                <path d="M10.2 16.5a2 2 0 0 0 3.6 0" />
+              </svg>
+            </button>
+            <button class="mic" id="voiceBtn" aria-pressed="false" aria-label="语音指令" title="语音指令：先说「小安」唤醒">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="2.5" width="6" height="11" rx="3" />
+                <path d="M5 11.5a7 7 0 0 0 14 0" />
+                <path d="M12 18.5v3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="activity" id="activityCard" hidden>
+          <div class="act-head"><b id="actTitle">—</b><span class="act-remain" id="actRemain"></span></div>
+          <div class="track"><i id="actProgress"></i></div>
+          <p class="act-cue" id="actCue"></p>
+          <p class="act-legend" id="actLegend" hidden>蓝线＝参考姿势；骨架绿＝接近、黄＝次之、灰＝偏离。</p>
+          <div class="act-foot">
+            <span class="act-remain" id="actScore"></span>
+            <button class="stop" id="actStop" aria-label="按住结束">按住结束</button>
+          </div>
+        </div>
+
+        <div class="deck" id="deck">
+          <div class="deck-track" id="deckTrack">
+            <section class="card" aria-label="状态">
+              <div class="scoreline">
+                <strong id="score">0</strong>
+                <span class="risk-label stable" id="riskLabel">平稳 · 姿态平衡</span>
+              </div>
+              <div class="track"><i id="gaugeBar"></i></div>
+              <ul id="signals" class="sig-grid">
+                <li><span>姿态</span><b>等待</b></li>
+                <li><span>重心</span><b>等待</b></li>
+                <li><span>下降</span><b>等待</b></li>
+                <li><span>预测</span><b>等待</b></li>
+                <li><span>个人基线</span><b>学习中</b></li>
+                <li><span>症状</span><b>无</b></li>
+              </ul>
+            </section>
+
+            <section class="card" aria-label="动作">
+              <div class="launch">
+                <button class="primary" id="cameraBtn" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="7" width="18" height="13" rx="3" />
+                    <path d="M8.5 7l1.3-2.6h4.4L15.5 7" />
+                    <circle cx="12" cy="13.2" r="3.2" />
+                  </svg>
+                  <span id="cameraLabel">相机</span>
+                </button>
+                <button class="secondary" id="trainBtn" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="4.6" r="2.6" />
+                    <path d="M12 7.4v6M9.2 10.2l2.8 1.2 2.8-1.2M12 13.4l-2.6 4.2M12 13.4l2.6 4.2M12 13.4l-2.8-3.2M12 13.4l2.8-3.2" />
+                  </svg>
+                  <span>训练</span>
+                </button>
+                <button class="secondary" id="baduanjinBtn" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="4.4" r="2.6" />
+                    <path d="M12 7.2v5.4M12 12.6l-2.4 4.4M12 12.6l2.4 4.4M7.6 7.4C5.8 9.6 6 12.4 9 14.6M16.4 7.4c1.8 2.2 1.6 5-1.4 7.2" />
+                  </svg>
+                  <span>八段锦</span>
+                </button>
+                <button class="secondary" id="musicBtn" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 17.5V5.5l10-2.5v11.5" />
+                    <circle cx="6.8" cy="17.5" r="2.4" />
+                    <circle cx="16.8" cy="14.5" r="2.4" />
+                  </svg>
+                  <span>音乐</span>
+                </button>
+              </div>
+              <p class="hint" id="trainingStatus">训练未开始</p>
+              <p class="hint" id="baduanjinStatus">跟练未开始（需开启相机）</p>
+              <p class="hint">左右滑动或摇头翻卡；说「小安，下一个」也可翻页。</p>
+            </section>
+
+            <section class="card" aria-label="症状">
+              <header class="card-head">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.2-5.5 3.6 11L15 12h6" /></svg>
+                <span>症状</span>
+              </header>
+              <div class="chips" id="checkinChips">
+                <button data-symptom="dizziness" aria-label="报告起身发晕">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5.5a6.5 6.5 0 1 0 6.5 6.5" />
+                    <path d="M14.5 5.5a6.5 6.5 0 1 1-6.5 6.5" />
+                    <path d="M15.5 3.5v1M18 5.5h1" />
+                  </svg>
+                  <span>发晕</span>
+                </button>
+                <button data-symptom="fatigue" aria-label="报告疲劳">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="8.5" width="16" height="7" rx="2" />
+                    <path d="M21 10.5v3M6.2 12h2.6" />
+                  </svg>
+                  <span>疲劳</span>
+                </button>
+                <button data-symptom="sleepDebt" aria-label="报告睡眠不足">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 13.5A8.5 8.5 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z" />
+                  </svg>
+                  <span>睡眠</span>
+                </button>
+                <button data-symptom="medicationOff" aria-label="报告药效减退">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5.5" y="8.6" width="13" height="6.8" rx="3.4" transform="rotate(-45 12 12)" />
+                  </svg>
+                  <span>药效</span>
+                </button>
+              </div>
+              <p class="hint">轻点即记录，计入本次会话风险。</p>
+            </section>
+
+            <section class="card" aria-label="护理">
+              <header class="card-head">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.2-4.6-7.2-10A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19.2 10c0 5.4-7.2 10-7.2 10Z" /></svg>
+                <span>护理</span>
+              </header>
+              <p class="care-label" id="careLabel">正在收集证据…</p>
+              <ul id="careAdvice"></ul>
+              <button class="link" id="careMore" hidden>展开更多</button>
+            </section>
+
+            <section class="card" aria-label="设置">
+              <header class="card-head">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h16M4 12h16M4 16.5h16" /><circle cx="9" cy="7.5" r="2.2" style="fill:var(--bg)" /><circle cx="15" cy="12" r="2.2" style="fill:var(--bg)" /><circle cx="7" cy="16.5" r="2.2" style="fill:var(--bg)" /></svg>
+                <span>设置</span>
+              </header>
+              <div class="tile-grid">
+                <button class="tile" id="settingsOpen" aria-label="打开设置表单">
+                  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h16M4 12h16M4 16.5h16" /><circle cx="9" cy="7.5" r="2.2" style="fill:var(--bg)" /><circle cx="15" cy="12" r="2.2" style="fill:var(--bg)" /><circle cx="7" cy="16.5" r="2.2" style="fill:var(--bg)" /></svg>
+                  <span>设置</span>
+                </button>
+                <button class="tile" id="motionBtn" aria-label="使用手机传感器">
+                  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.8" width="10" height="18.4" rx="2.6" /><path d="M11 17.4h2" /></svg>
+                  <span id="motionLabel">传感器</span>
+                </button>
+                <button class="tile" id="bleBtn" aria-label="连接蓝牙手环">
+                  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6.8" y="6" width="10.4" height="12" rx="3" /><path d="M9 6V3h6v3M9 18v3h6v-3" /></svg>
+                  <span id="bleLabel">手环</span>
+                </button>
+                <button class="tile" id="fusionBtn" aria-label="相机与手机传感器融合">
+                  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6" /></svg>
+                  <span id="fusionLabel">融合</span>
+                </button>
+              </div>
+              <p class="hint">提醒、音乐与演示在「设置」表单内；结束会话：按住结束，或点一下再点头确认。</p>
+            </section>
+          </div>
+        </div>
+
+        <nav class="dots" id="deckDots" aria-label="卡片切换">
+          <button class="on" aria-label="第 1 张：状态"></button>
+          <button aria-label="第 2 张：动作"></button>
+          <button aria-label="第 3 张：症状"></button>
+          <button aria-label="第 4 张：护理"></button>
+          <button aria-label="第 5 张：设置"></button>
+        </nav>
+      </aside>
+    </section>
+
+    <div class="sheet-backdrop" id="sheetBackdrop" hidden>
+      <section class="sheet" id="settingsSheet" role="dialog" aria-modal="true" aria-label="设置">
+        <div class="sheet-handle" id="sheetHandle" aria-hidden="true"></div>
+        <header class="sheet-head" id="sheetHead">
+          <b>设置</b>
+          <button class="link" id="sheetClose">完成</button>
+        </header>
+        <div class="sheet-body">
+          <div class="set-row">
+            <span class="set-label">训练</span>
+            <input type="time" id="scheduleTime" value="" aria-label="训练提醒时间" />
+            <button class="link" id="scheduleClear" hidden>清除</button>
+            <span class="set-state" id="scheduleState">未启用</span>
+          </div>
+          <div class="set-row">
+            <span class="set-label">服药</span>
+            <input type="time" id="medTime1" value="" aria-label="服药提醒时间一" />
+            <input type="time" id="medTime2" value="" aria-label="服药提醒时间二" />
+            <button class="link" id="medClear" hidden>清除</button>
+            <span class="set-state" id="medState">未启用</span>
+          </div>
+          <div class="set-row">
+            <div class="seg" id="musicSeg" role="tablist" aria-label="音乐模式">
+              <button data-mode="metronome" class="on" role="tab" aria-selected="true">节拍</button>
+              <button data-mode="breath" role="tab" aria-selected="false">呼吸</button>
+            </div>
+            <div class="stepper" aria-label="节拍速率">
+              <button id="bpmDown" aria-label="减慢节拍">−</button>
+              <span id="bpmValue">100</span>
+              <button id="bpmUp" aria-label="加快节拍">+</button>
+            </div>
+            <span class="set-state" id="musicState">音乐未开启</span>
+          </div>
+          <div class="set-row">
+            <select id="scenario" aria-label="演示场景">
+              <option value="stable">平稳行走</option>
+              <option value="wobble">不稳行走</option>
+              <option value="wobble-shift">步态突变</option>
+              <option value="dizzy-walk">头晕步态（含签到）</option>
+              <option value="near-fall" selected>差点跌倒</option>
+              <option value="imu-near-fall">差点跌倒（IMU 通道）</option>
+            </select>
+            <button class="secondary" id="demoBtn">运行场景</button>
+          </div>
+          <div class="set-row">
+            <span class="set-label">日志</span>
+            <button class="secondary" id="journalExport">导出会话日志</button>
+            <span class="set-state" id="journalState">仅当前会话</span>
+          </div>
+          <div class="set-row">
+            <button class="secondary" id="cameraStopBtn" hidden>停止相机</button>
+          </div>
+          <p class="drawer-hint">语音：先说「小安」唤醒，再说指令——开始训练 / 开始八段锦 / 打开相机 / 开始节拍 / 下一个 / 上一个 / 关闭音乐 / 关闭相机 / 关闭语音。未唤醒的开始与翻卡指令会被忽略（防误触）；结束类指令可直接说。</p>
+          <p class="drawer-hint">提醒选时间即启用、「清除」即关闭；页面关闭时不提醒（系统级提醒属后续里程碑）。服药提醒只报时间，按医嘱设置。训练与跟练为活动练习，不构成治疗方案。</p>
+        </div>
+      </section>
+    </div>
+
+    <p class="disclaimer">原型应用，非医疗器械：不做诊断、不涉及用药调整、不替代急救；可能漏报或误报。请遵医嘱并保持常规防跌倒措施。</p>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

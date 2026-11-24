@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SisFall</string>
+    <string name="title_activity_main">SisFall</string>
+    <string name="package_name">com.skat.sisfall</string>
+    <string name="custom_url_scheme">com.skat.sisfall</string>
+</resources>

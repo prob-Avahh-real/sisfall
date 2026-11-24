@@ -1,0 +1,8 @@
+{
+  "appId": "com.skat.sisfall",
+  "appName": "SisFall",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": true
+  }
+}

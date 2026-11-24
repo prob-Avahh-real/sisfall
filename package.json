@@ -1,0 +1,17 @@
+{
+  "name": "sisfall",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 4173",
+    "build": "node scripts/build-web.js",
+    "sync:android": "npm run build && npx cap sync android",
+    "test": "node --test",
+    "demo": "node scripts/demo.js",
+    "train": "node tools/train.js",
+    "evaluate": "node tools/evaluate.js",
+    "review": "node tools/review-packet.js",
+    "firmware": "node tools/gen-firmware.js"
+  }
+}
